@@ -28,6 +28,7 @@ find_package(catkin REQUIRED COMPONENTS
   diagnostic_updater
   camera_info_manager
   gazebo_plugins
+  team_diana_lib
 )
 
 include (FindPkgConfig)
@@ -91,6 +92,7 @@ catkin_package(
   rosconsole
   camera_info_manager
   gazebo_plugins
+  team_diana_lib
   DEPENDS
     gazebo
     SDF

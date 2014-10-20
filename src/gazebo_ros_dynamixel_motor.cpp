@@ -40,8 +40,12 @@
 #include <gazebo_plugins/gazebo_ros_dynamixel_motor.h>
 #include <gazebo_plugins/gazebo_ros_utils.h>
 
+#include <team_diana_lib/logging/logging.h>
+
 #include <gazebo/math/gzmath.hh>
 #include <sdf/sdf.hh>
+
+#include <dynamixel_msgs/JointState.h>
 
 #include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
@@ -52,6 +56,8 @@
 #include <boost/bind.hpp>
 #include <boost/thread/mutex.hpp>
 #include <geometry_msgs/Wrench.h>
+
+using namespace Td;
 
 namespace gazebo {
 
@@ -127,6 +133,21 @@ namespace gazebo {
     rosnode_->shutdown();
   }
 
+  /**
+   *
+Header header
+string name         # joint name
+int32[] motor_ids   # motor ids controlling this joint
+int32[] motor_temps # motor temperatures, same order as motor_ids
+
+float64 goal_pos    # commanded position (in radians)
+float64 current_pos # current joint position (in radians)
+float64 error       # error between commanded and current positions (in radians)
+float64 velocity    # current joint speed (in radians per second)
+float64 load        # current load
+bool is_moving      # is joint currently in motion
+    **/
+
   void GazeboRosDynamixelMotor::OnWorldUpdate()
   {
     using MsgType = geometry_msgs::Wrench;
@@ -147,14 +168,6 @@ namespace gazebo {
     auto v3_not_zero  = [](const auto& v) -> bool {
       return (v.x != 0 || v.y != 0 || v.z != 0);
     };
-
-    if(v3_not_zero(force.body1Torque)) {
-      ros_info("body 1 torque : " + v3_to_string(force.body1Torque));
-    }
-
-    if(v3_not_zero(force.body2Torque)) {
-      ros_info("body 2 torque : " + v3_to_string(force.body2Torque));
-    }
 
     force_publisher.publish<MsgType>(wrench_msg);
   }
