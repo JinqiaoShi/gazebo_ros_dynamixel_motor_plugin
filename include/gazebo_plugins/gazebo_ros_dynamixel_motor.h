@@ -1,43 +1,15 @@
 /*
- * Copyright (c) 2014 Team DIANA
- *  All rights reserved.
+ * @file  gazebo_ros_dynamixel_motor.h
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are met:
- *      * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
- *      * Redistributions in binary form must reproduce the above copyright
- *      notice, this list of conditions and the following disclaimer in the
- *      documentation and/or other materials provided with the distribution.
- *      * Neither the name of the <organization> nor the
- *      names of its contributors may be used to endorse or promote products
- *      derived from this software without specific prior written permission.
+ * @brief A configurable plugin that controls one or more joint.
  *
- *  THIS SOFTWARE IS PROVIDED BY Antons Rebguns <email> ''AS IS'' AND ANY
- *  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- *  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *  DISCLAIMED. IN NO EVENT SHALL Antons Rebguns <email> BE LIABLE FOR ANY
- *  DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- *  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- *  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- **/
-
-/*
- * \file  gazebo_ros_dynamixel_motor.h
- *
- * \brief A configurable plugin that controls one or more joint.
- *
- * \author  Vincenzo Comito <clynamen@gmail.com>
+ * @author  Vincenzo Comito <clynamen@gmail.com>
  */
 
 #ifndef GAZEBO_ROS_DYNAMIXEL_MOTOR_H_
 #define GAZEBO_ROS_DYNAMIXEL_MOTOR_H_
 
-#include <map>
+#include "motor_state.h"
 
 #include <gazebo/common/common.hh>
 #include <gazebo/physics/physics.hh>
@@ -50,10 +22,19 @@
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <sensor_msgs/JointState.h>
+#include <dynamixel_msgs/JointState.h>
 
 // Custom Callback Queue
 #include <ros/callback_queue.h>
 #include <ros/advertise_options.h>
+#include <dynamixel_controllers/SetTorque.h>
+#include <dynamixel_controllers/SetTorqueLimit.h>
+#include <dynamixel_controllers/TorqueEnable.h>
+#include <dynamixel_controllers/SetSpeed.h>
+#include <dynamixel_controllers/SetThreshold.h>
+#include <dynamixel_controllers/SetCompliancePunch.h>
+#include <dynamixel_controllers/SetComplianceSlope.h>
+#include <dynamixel_controllers/SetComplianceMargin.h>
 
 // Boost
 #include <boost/thread.hpp>
@@ -72,7 +53,10 @@ namespace gazebo {
 	  GazeboRosDynamixelMotor();
     ~GazeboRosDynamixelMotor();
 
+    void InitServices();
+
     void Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf);
+    void UpdateMotor();
     void OnWorldUpdate();
 
     static const std::string PLUGIN_NAME;
@@ -81,16 +65,44 @@ namespace gazebo {
       void Shutdown();
 
     private:
-      void publishOdometry(double step_time);
-      void getWheelVelocities();
+      /**
+       * Create a dynamixel_msgs JointState given a @b motor_state
+       */
+      dynamixel_msgs::JointState createJointStateMsg(const std::string& name, const MotorState& motor_state);
+
+      /**
+       * Create a dynamixel_msgs JointState referred to the @b arm reference frame given a @b motor_state
+       *
+       * @deprecated This function will not be used anymore once the @b arm reference frame will be ignored.
+       *
+       */
+      dynamixel_msgs::JointState createArmJointStateMsg(const std::string& name, const MotorState& motor_state);
 
       physics::WorldPtr world;
       physics::ModelPtr parent;
-      ros::Publisher force_publisher;
 
-      ros::NodeHandle* rosnode_;
+      ros::Publisher dynamixel_joint_state_publisher;
+      ros::Publisher dynamixel_arm_joint_state_publisher;
 
-      std::string robot_namespace_;
+      ros::Subscriber command_subscriber;
+      ros::Subscriber arm_command_subscriber;
+      ros::Subscriber vel_command;
+
+      ros::ServiceServer set_speed_service;
+      ros::ServiceServer enable_torque_service;
+      ros::ServiceServer set_compliance_slop_service;
+      ros::ServiceServer set_complicance_punch_service;
+      ros::ServiceServer set_torque_limit_service;
+      ros::ServiceServer set_torque_service;
+      ros::ServiceServer set_threshold_service;
+
+      bool SetSpeedService(dynamixel_controllers::SetSpeed::Request& req,
+                           dynamixel_controllers::SetSpeed::Response& res);
+
+      ros::NodeHandle* rosnode;
+
+      std::string robot_namespace;
+      std::string base_topic_name;
 
       bool alive_;
       physics::JointPtr joint;
@@ -98,8 +110,12 @@ namespace gazebo {
       // Update Rate
       double update_rate_;
       double update_period_;
+      double motor_allowed_error;
+
       common::Time last_update_time_;
       event::ConnectionPtr update_connection;
+      MotorState current_motor_state;
+      std::string motor_name;
   };
 
 }
