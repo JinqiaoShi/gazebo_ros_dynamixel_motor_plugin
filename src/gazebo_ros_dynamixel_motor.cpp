@@ -119,13 +119,15 @@ namespace gazebo {
 
     current_motor_state.mode = MotorStateMode::Position;
     current_motor_state.demultiply_value = GetValueFromElement<double>(sdf, "demultiply_value", 0.0);
-    current_motor_state.current_pos_rad = GetValueFromElement<double>(sdf, "default_pos", 0.0);
+    current_motor_state.current_pos_rad = current_motor_state.goal_pos_rad = GetValueFromElement<double>(sdf, "default_pos", 0.0);
     current_motor_state.velocity_limit_rad_s = GetValueFromElement<double>(sdf, "default_vel_limit", 1);
     current_motor_state.torque_enabled = true;
     motor_allowed_error = GetValueFromElement<double>(sdf, "allowed_error", 0.001);
     current_motor_state.torque_limit = GetValueFromElement<double>(sdf, "default_torque_limit", 10);
 
     base_topic_name = GetValueFromElement<string>(sdf, "base_topic_name", "dynamixel_motor");
+
+    joint->SetPosition(0, current_motor_state.current_pos_rad);
 
     ros_info("creating subscribers");
 
