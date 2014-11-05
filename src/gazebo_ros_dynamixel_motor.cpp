@@ -51,11 +51,11 @@
 #include <sdf/sdf.hh>
 
 #include <dynamixel_msgs/JointState.h>
-#include <dynamixel_controllers/SetTorque.h>
+//#include <dynamixel_controllers/SetTorque.h>
 #include <dynamixel_controllers/SetTorqueLimit.h>
 #include <dynamixel_controllers/TorqueEnable.h>
 #include <dynamixel_controllers/SetSpeed.h>
-#include <dynamixel_controllers/SetThreshold.h>
+//#include <dynamixel_controllers/SetThreshold.h>
 #include <dynamixel_controllers/SetCompliancePunch.h>
 #include <dynamixel_controllers/SetComplianceSlope.h>
 #include <dynamixel_controllers/SetComplianceMargin.h>
