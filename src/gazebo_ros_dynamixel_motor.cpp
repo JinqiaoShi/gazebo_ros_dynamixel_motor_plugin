@@ -119,7 +119,7 @@ namespace gazebo {
     ros_info("Starting " + PLUGIN_NAME + " (ns = " + robot_namespace + " )" );
 
     current_motor_state.mode = MotorStateMode::Position;
-    current_motor_state.demultiply_value = GetValueFromElement<double>(sdf, "demultiply_value", 1);
+    current_motor_state.demultiply_value = GetValueFromElement<double>(sdf, "reduction_value", 1);
     current_motor_state.current_pos_rad = current_motor_state.goal_pos_rad = GetValueFromElement<double>(sdf, "default_pos", 0.0);
     current_motor_state.velocity_limit_rad_s = GetValueFromElement<double>(sdf, "default_vel_limit", 1);
     current_motor_state.torque_enabled = true;
@@ -138,7 +138,7 @@ namespace gazebo {
 
     command_subscriber = rosnode->subscribe<std_msgs::Float64>(
       mkTopicName("/command"), 10, [&] (const std_msgs::Float64::ConstPtr& msg) {
-        ros_info("setting new position");
+        ros_info(toString("setting new position to ", msg->data));
         current_motor_state.mode = MotorStateMode::Position;
         current_motor_state.goal_pos_rad = msg->data;
       }
@@ -146,7 +146,7 @@ namespace gazebo {
 
     arm_command_subscriber = rosnode->subscribe<std_msgs::Float64>(
       mkTopicName("/arm/command"), 10, [&] (const std_msgs::Float64::ConstPtr& msg) {
-        ros_info("setting new arm position");
+        ros_info(toString("setting new arm position to ", msg->data));
         current_motor_state.mode = MotorStateMode::Position;
         current_motor_state.goal_pos_rad = msg->data * current_motor_state.demultiply_value;
       }
@@ -165,7 +165,7 @@ namespace gazebo {
     dynamixel_joint_state_publisher = rosnode->advertise<MsgType>(
       mkTopicName("/state"), 10);
     dynamixel_arm_joint_state_publisher = rosnode->advertise<MsgType>(
-      mkTopicName("arm/state"), 10);
+      mkTopicName("/arm/state"), 10);
 
     ros_info("creating services");
     InitServices();
@@ -281,7 +281,7 @@ bool GazeboRosDynamixelMotor::SetSpeedService(dynamixel_controllers::SetSpeed::R
 
   MotorState gazebo::GazeboRosDynamixelMotor::ReadMotor() const
   {
-    MotorState read_motor_state;
+    MotorState read_motor_state = current_motor_state;
     read_motor_state.current_pos_rad = joint->GetAngle(0).Radian();
 
     if(read_motor_state.mode == MotorStateMode::Position) {
