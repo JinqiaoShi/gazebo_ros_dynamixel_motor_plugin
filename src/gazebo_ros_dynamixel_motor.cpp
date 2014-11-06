@@ -46,6 +46,7 @@
 #include <team_diana_lib/logging/logging.h>
 #include <team_diana_lib/strings/strings.h>
 #include <team_diana_lib/math/math.h>
+#include <team_diana_lib/random/random.h>
 
 #include <gazebo/math/gzmath.hh>
 #include <sdf/sdf.hh>
@@ -118,7 +119,7 @@ namespace gazebo {
     ros_info("Starting " + PLUGIN_NAME + " (ns = " + robot_namespace + " )" );
 
     current_motor_state.mode = MotorStateMode::Position;
-    current_motor_state.demultiply_value = GetValueFromElement<double>(sdf, "demultiply_value", 0.0);
+    current_motor_state.demultiply_value = GetValueFromElement<double>(sdf, "demultiply_value", 1);
     current_motor_state.current_pos_rad = current_motor_state.goal_pos_rad = GetValueFromElement<double>(sdf, "default_pos", 0.0);
     current_motor_state.velocity_limit_rad_s = GetValueFromElement<double>(sdf, "default_vel_limit", 1);
     current_motor_state.torque_enabled = true;
@@ -267,8 +268,15 @@ bool GazeboRosDynamixelMotor::SetSpeedService(dynamixel_controllers::SetSpeed::R
 
   dynamixel_msgs::JointState GazeboRosDynamixelMotor::createArmJointStateMsg(const std::string& name, const MotorState& motor_state)
   {
-   // TODO: fix data
-    return createJointStateMsg(name, motor_state);
+    dynamixel_msgs::JointState msg = createJointStateMsg(name, motor_state);
+
+    msg.error = msg.error / current_motor_state.demultiply_value;
+    msg.velocity = msg.velocity / current_motor_state.demultiply_value;
+    msg.load = msg.load * current_motor_state.demultiply_value;
+    msg.goal_pos = msg.goal_pos / current_motor_state.demultiply_value;
+    msg.current_pos = msg.current_pos / current_motor_state.demultiply_value;
+
+    return msg;
   }
 
   MotorState gazebo::GazeboRosDynamixelMotor::ReadMotor() const
@@ -285,6 +293,9 @@ bool GazeboRosDynamixelMotor::SetSpeedService(dynamixel_controllers::SetSpeed::R
 
     read_motor_state.is_moving = read_motor_state.velocity_rad_s != 0 && read_motor_state.torque_enabled;
     read_motor_state.load = joint->GetForceTorque(0).body2Torque.x; // TODO: the axis may be wrong, review this
+
+    read_motor_state.motor_temp = nextGaussian<int>(24, 2);
+
     return read_motor_state;
   }
 
