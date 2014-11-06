@@ -271,49 +271,58 @@ bool GazeboRosDynamixelMotor::SetSpeedService(dynamixel_controllers::SetSpeed::R
     return createJointStateMsg(name, motor_state);
   }
 
-
-  void GazeboRosDynamixelMotor::UpdateMotor()
+  MotorState gazebo::GazeboRosDynamixelMotor::ReadMotor() const
   {
-    current_motor_state.current_pos_rad = joint->GetAngle(0).Radian();
+    MotorState read_motor_state;
+    read_motor_state.current_pos_rad = joint->GetAngle(0).Radian();
 
-    current_motor_state.error_rad = 0;
-    if(current_motor_state.mode == MotorStateMode::Position) {
-      double pos_delta_rad = (current_motor_state.goal_pos_rad - current_motor_state.current_pos_rad);
+    if(read_motor_state.mode == MotorStateMode::Position) {
+      double pos_delta_rad = (read_motor_state.goal_pos_rad - read_motor_state.current_pos_rad);
+      read_motor_state.error_rad = pos_delta_rad;
+    } else {
+      read_motor_state.error_rad = 0;
+    }
+
+    read_motor_state.is_moving = read_motor_state.velocity_rad_s != 0 && read_motor_state.torque_enabled;
+    read_motor_state.load = joint->GetForceTorque(0).body2Torque.x; // TODO: the axis may be wrong, review this
+    return read_motor_state;
+  }
+
+
+  void GazeboRosDynamixelMotor::UpdateMotor(const MotorState& read_motor_state)
+  {
+    double target_velocity = 0;
+
+    if(read_motor_state.mode == MotorStateMode::Position) {
+      double pos_delta_rad = (read_motor_state.goal_pos_rad - read_motor_state.current_pos_rad);
       bool goal_reached =  fabs(pos_delta_rad) < motor_allowed_error;
-      current_motor_state.error_rad = pos_delta_rad;
-
       if(!goal_reached) {
-        current_motor_state.velocity_rad_s = Td::sgn(pos_delta_rad) * current_motor_state.velocity_limit_rad_s;
+        target_velocity = Td::sgn(pos_delta_rad) * read_motor_state.velocity_limit_rad_s;
       } else {
-        current_motor_state.velocity_rad_s = 0;
-      }
-
-    } else if (current_motor_state.mode == MotorStateMode::Velocity) {
-      if(!current_motor_state.torque_enabled) {
-        current_motor_state.velocity_rad_s = 0;
+        target_velocity = 0;
       }
     }
 
-    if(current_motor_state.torque_enabled) {
-      joint->SetMaxForce(0, current_motor_state.torque_limit);
+    if(read_motor_state.torque_enabled) {
+      joint->SetMaxForce(0, read_motor_state.torque_limit);
     } else {
       joint->SetMaxForce(0, 0);
     }
 
-    current_motor_state.is_moving = current_motor_state.velocity_rad_s != 0 && current_motor_state.torque_enabled;
-    current_motor_state.load = joint->GetForceTorque(0).body2Torque.x;
-    joint->SetVelocity(0, current_motor_state.velocity_rad_s);
+    joint->SetVelocity(0, target_velocity);
   }
 
   void GazeboRosDynamixelMotor::OnWorldUpdate()
   {
-    UpdateMotor();
+    current_motor_state = ReadMotor();
 
     MsgType joint_state_msg = createJointStateMsg(motor_name, current_motor_state);
     dynamixel_joint_state_publisher.publish<MsgType>(joint_state_msg);
 
     MsgType arm_joint_state_msg = createArmJointStateMsg(motor_name, current_motor_state);
     dynamixel_arm_joint_state_publisher.publish<MsgType>(arm_joint_state_msg);
+
+    UpdateMotor(current_motor_state);
   }
 
   GZ_REGISTER_MODEL_PLUGIN(GazeboRosDynamixelMotor)

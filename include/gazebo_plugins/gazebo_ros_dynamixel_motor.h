@@ -56,7 +56,8 @@ namespace gazebo {
     void InitServices();
 
     void Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf);
-    void UpdateMotor();
+    MotorState ReadMotor() const;
+    void UpdateMotor(const MotorState& read_motor_state);
     void OnWorldUpdate();
 
     static const std::string PLUGIN_NAME;
