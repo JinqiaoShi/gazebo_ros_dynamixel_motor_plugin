@@ -138,7 +138,6 @@ namespace gazebo {
 
     command_subscriber = rosnode->subscribe<std_msgs::Float64>(
       mkTopicName("/command"), 10, [&] (const std_msgs::Float64::ConstPtr& msg) {
-        ros_info(toString("setting new position to ", msg->data));
         current_motor_state.mode = MotorStateMode::Position;
         current_motor_state.goal_pos_rad = msg->data;
       }
@@ -146,7 +145,6 @@ namespace gazebo {
 
     arm_command_subscriber = rosnode->subscribe<std_msgs::Float64>(
       mkTopicName("/arm/command"), 10, [&] (const std_msgs::Float64::ConstPtr& msg) {
-        ros_info(toString("setting new arm position to ", msg->data));
         current_motor_state.mode = MotorStateMode::Position;
         current_motor_state.goal_pos_rad = msg->data * current_motor_state.demultiply_value;
       }
@@ -154,7 +152,6 @@ namespace gazebo {
 
     vel_command = rosnode->subscribe<std_msgs::Float64>(
       mkTopicName("/vel_tor/command"), 10, [&] (const std_msgs::Float64::ConstPtr& msg) {
-        ros_info("setting velocity");
         current_motor_state.mode = MotorStateMode::Velocity;
         current_motor_state.velocity_rad_s = msg->data;
       }
