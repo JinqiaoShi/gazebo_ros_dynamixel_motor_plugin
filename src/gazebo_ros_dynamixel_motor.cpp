@@ -123,12 +123,12 @@ namespace gazebo {
     current_motor_state.current_pos_rad = current_motor_state.goal_pos_rad = GetValueFromElement<double>(sdf, "default_pos", 0.0);
     current_motor_state.velocity_limit_rad_s = GetValueFromElement<double>(sdf, "default_vel_limit", 1);
     current_motor_state.torque_enabled = true;
-    motor_allowed_error = GetValueFromElement<double>(sdf, "allowed_error", 0.001);
+    motor_allowed_error = GetValueFromElement<double>(sdf, "allowed_error", 0.01);
     current_motor_state.torque_limit = GetValueFromElement<double>(sdf, "default_torque_limit", 10);
 
     base_topic_name = GetValueFromElement<string>(sdf, "base_topic_name", "dynamixel_motor");
 
-    joint->SetPosition(0, current_motor_state.current_pos_rad);
+    joint->SetPosition(0, current_motor_state.current_pos_rad / current_motor_state.demultiply_value);
 
     ros_info("creating subscribers");
 
@@ -282,7 +282,8 @@ bool GazeboRosDynamixelMotor::SetSpeedService(dynamixel_controllers::SetSpeed::R
   MotorState gazebo::GazeboRosDynamixelMotor::ReadMotor() const
   {
     MotorState read_motor_state = current_motor_state;
-    read_motor_state.current_pos_rad = joint->GetAngle(0).Radian();
+    double arm_angle_rad = joint->GetAngle(0).Radian();
+    read_motor_state.current_pos_rad = arm_angle_rad * current_motor_state.demultiply_value;
 
     if(read_motor_state.mode == MotorStateMode::Position) {
       double pos_delta_rad = (read_motor_state.goal_pos_rad - read_motor_state.current_pos_rad);
@@ -290,6 +291,7 @@ bool GazeboRosDynamixelMotor::SetSpeedService(dynamixel_controllers::SetSpeed::R
     } else {
       read_motor_state.error_rad = 0;
     }
+
 
     read_motor_state.is_moving = read_motor_state.velocity_rad_s != 0 && read_motor_state.torque_enabled;
     read_motor_state.load = joint->GetForceTorque(0).body2Torque.x; // TODO: the axis may be wrong, review this
@@ -302,15 +304,16 @@ bool GazeboRosDynamixelMotor::SetSpeedService(dynamixel_controllers::SetSpeed::R
 
   void GazeboRosDynamixelMotor::UpdateMotor(const MotorState& read_motor_state)
   {
-    double target_velocity = 0;
 
     if(read_motor_state.mode == MotorStateMode::Position) {
       double pos_delta_rad = (read_motor_state.goal_pos_rad - read_motor_state.current_pos_rad);
       bool goal_reached =  fabs(pos_delta_rad) < motor_allowed_error;
       if(!goal_reached) {
+        double target_velocity = 0;
         target_velocity = Td::sgn(pos_delta_rad) * read_motor_state.velocity_limit_rad_s;
+        joint->SetVelocity(0, target_velocity);
       } else {
-        target_velocity = 0;
+        joint->SetVelocity(0, 0);
       }
     }
 
@@ -320,7 +323,6 @@ bool GazeboRosDynamixelMotor::SetSpeedService(dynamixel_controllers::SetSpeed::R
       joint->SetMaxForce(0, 0);
     }
 
-    joint->SetVelocity(0, target_velocity);
   }
 
   void GazeboRosDynamixelMotor::OnWorldUpdate()
