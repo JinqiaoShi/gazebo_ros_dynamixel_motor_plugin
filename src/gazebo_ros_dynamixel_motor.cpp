@@ -82,7 +82,6 @@ namespace gazebo {
 
   // Destructor
   GazeboRosDynamixelMotor::~GazeboRosDynamixelMotor() {
-    ros_info(" destroying  ");
     delete rosnode;
   }
 
@@ -90,8 +89,6 @@ namespace gazebo {
   void GazeboRosDynamixelMotor::Load(physics::ModelPtr parent, sdf::ElementPtr sdf) {
     using namespace std;
     using namespace sdf;
-
-    ros_info("starting");
 
     this->parent = parent;
     this->world = parent->GetWorld();
@@ -116,8 +113,6 @@ namespace gazebo {
 
     rosnode = new ros::NodeHandle(this->robot_namespace);
 
-    ros_info("Starting " + PLUGIN_NAME + " (ns = " + robot_namespace + " )" );
-
     current_motor_state.mode = MotorStateMode::Position;
     current_motor_state.demultiply_value = GetValueFromElement<double>(sdf, "reduction_value", 1);
     current_motor_state.current_pos_rad = current_motor_state.goal_pos_rad = GetValueFromElement<double>(sdf, "default_pos", 0.0);
@@ -129,8 +124,6 @@ namespace gazebo {
     base_topic_name = GetValueFromElement<string>(sdf, "base_topic_name", "dynamixel_motor");
 
     joint->SetPosition(0, current_motor_state.current_pos_rad / current_motor_state.demultiply_value);
-
-    ros_info("creating subscribers");
 
     auto mkTopicName = [&](string s) {
       return toString(robot_namespace, "/", base_topic_name, s);
@@ -158,18 +151,15 @@ namespace gazebo {
     );
 
 
-    ros_info("creating publishers");
     dynamixel_joint_state_publisher = rosnode->advertise<MsgType>(
       mkTopicName("/state"), 10);
     dynamixel_arm_joint_state_publisher = rosnode->advertise<MsgType>(
       mkTopicName("/arm/state"), 10);
 
-    ros_info("creating services");
     InitServices();
 
     string motor_name = GetValueFromElement<string>(sdf, "motor_name", joint->GetName());
 
-    ros_info("subscribing to world update ");
     // listen to the update event (broadcast every simulation iteration)
     update_connection =
       event::Events::ConnectWorldUpdateBegin(
@@ -241,7 +231,6 @@ bool GazeboRosDynamixelMotor::SetSpeedService(dynamixel_controllers::SetSpeed::R
 
   // Finalize the controller
   void GazeboRosDynamixelMotor::Shutdown() {
-    ros_info("shutting down");
     alive_ = false;
     rosnode->shutdown();
   }
@@ -308,18 +297,17 @@ bool GazeboRosDynamixelMotor::SetSpeedService(dynamixel_controllers::SetSpeed::R
       if(!goal_reached) {
         double target_velocity = 0;
         target_velocity = Td::sgn(pos_delta_rad) * read_motor_state.velocity_limit_rad_s;
-        joint->SetVelocity(0, target_velocity);
+        joint->SetParam("vel", 0, target_velocity);
       } else {
-        joint->SetVelocity(0, 0);
+        joint->SetParam("vel", 0, 0.0);
       }
     }
 
     if(read_motor_state.torque_enabled) {
-      joint->SetMaxForce(0, read_motor_state.torque_limit);
+      joint->SetParam("fmax", 0, read_motor_state.torque_limit);
     } else {
-      joint->SetMaxForce(0, 0);
+      joint->SetParam("fmax", 0, 0.0);
     }
-
   }
 
   void GazeboRosDynamixelMotor::OnWorldUpdate()

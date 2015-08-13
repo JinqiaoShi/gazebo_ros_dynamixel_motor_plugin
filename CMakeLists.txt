@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(gazebo_ros_dynamixel_motor_plugin)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -Werror ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-std=c++11 -Wall ${CMAKE_CXX_FLAGS}")
 
 find_package(catkin REQUIRED COMPONENTS
   message_generation
