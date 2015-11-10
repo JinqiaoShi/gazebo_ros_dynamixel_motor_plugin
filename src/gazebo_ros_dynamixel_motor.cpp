@@ -136,13 +136,6 @@ namespace gazebo {
       }
     );
 
-    arm_command_subscriber = rosnode->subscribe<std_msgs::Float64>(
-      mkTopicName("/arm/command"), 10, [&] (const std_msgs::Float64::ConstPtr& msg) {
-        current_motor_state.mode = MotorStateMode::Position;
-        current_motor_state.goal_pos_rad = msg->data * current_motor_state.demultiply_value;
-      }
-    );
-
     vel_command = rosnode->subscribe<std_msgs::Float64>(
       mkTopicName("/vel_tor/command"), 10, [&] (const std_msgs::Float64::ConstPtr& msg) {
         current_motor_state.mode = MotorStateMode::Velocity;
@@ -153,8 +146,6 @@ namespace gazebo {
 
     dynamixel_joint_state_publisher = rosnode->advertise<MsgType>(
       mkTopicName("/state"), 10);
-    dynamixel_arm_joint_state_publisher = rosnode->advertise<MsgType>(
-      mkTopicName("/arm/state"), 10);
 
     InitServices();
 
@@ -251,20 +242,6 @@ bool GazeboRosDynamixelMotor::SetSpeedService(dynamixel_controllers::SetSpeed::R
     return msg;
   }
 
-
-  dynamixel_msgs::JointState GazeboRosDynamixelMotor::createArmJointStateMsg(const std::string& name, const MotorState& motor_state)
-  {
-    dynamixel_msgs::JointState msg = createJointStateMsg(name, motor_state);
-
-    msg.error = msg.error / current_motor_state.demultiply_value;
-    msg.velocity = msg.velocity / current_motor_state.demultiply_value;
-    msg.load = msg.load * current_motor_state.demultiply_value;
-    msg.goal_pos = msg.goal_pos / current_motor_state.demultiply_value;
-    msg.current_pos = msg.current_pos / current_motor_state.demultiply_value;
-
-    return msg;
-  }
-
   MotorState gazebo::GazeboRosDynamixelMotor::ReadMotor() const
   {
     MotorState read_motor_state = current_motor_state;
@@ -296,7 +273,7 @@ bool GazeboRosDynamixelMotor::SetSpeedService(dynamixel_controllers::SetSpeed::R
       bool goal_reached =  fabs(pos_delta_rad) < motor_allowed_error;
       if(!goal_reached) {
         double target_velocity = 0;
-        target_velocity = Td::sgn(pos_delta_rad) * read_motor_state.velocity_limit_rad_s;
+        target_velocity = Td::sgn(pos_delta_rad) * read_motor_state.velocity_limit_rad_s * Td::sgn(current_motor_state.demultiply_value);
         joint->SetParam("vel", 0, target_velocity);
       } else {
         joint->SetParam("vel", 0, 0.0);
@@ -316,9 +293,6 @@ bool GazeboRosDynamixelMotor::SetSpeedService(dynamixel_controllers::SetSpeed::R
 
     MsgType joint_state_msg = createJointStateMsg(motor_name, current_motor_state);
     dynamixel_joint_state_publisher.publish<MsgType>(joint_state_msg);
-
-    MsgType arm_joint_state_msg = createArmJointStateMsg(motor_name, current_motor_state);
-    dynamixel_arm_joint_state_publisher.publish<MsgType>(arm_joint_state_msg);
 
     UpdateMotor(current_motor_state);
   }

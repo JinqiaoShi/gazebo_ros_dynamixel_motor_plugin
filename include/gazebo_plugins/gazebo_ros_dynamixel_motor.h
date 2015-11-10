@@ -71,22 +71,12 @@ namespace gazebo {
        */
       dynamixel_msgs::JointState createJointStateMsg(const std::string& name, const MotorState& motor_state);
 
-      /**
-       * Create a dynamixel_msgs JointState referred to the @b arm reference frame given a @b motor_state
-       *
-       * @deprecated This function will not be used anymore once the @b arm reference frame will be ignored.
-       *
-       */
-      dynamixel_msgs::JointState createArmJointStateMsg(const std::string& name, const MotorState& motor_state);
-
       physics::WorldPtr world;
       physics::ModelPtr parent;
 
       ros::Publisher dynamixel_joint_state_publisher;
-      ros::Publisher dynamixel_arm_joint_state_publisher;
 
       ros::Subscriber command_subscriber;
-      ros::Subscriber arm_command_subscriber;
       ros::Subscriber vel_command;
 
       ros::ServiceServer set_speed_service;
